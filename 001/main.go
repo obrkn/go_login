@@ -2,37 +2,56 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"net/http"
 )
 
 func secret(w http.ResponseWriter, r *http.Request) {
-	if auth, ok := session.Values["authenticated"].(bool); !ok || !auth {
+	cookie, err := r.Cookie("Login")
+	if err != nil || cookie.Value != "true" {
 		http.Error(w, "Forbidden", http.StatusForbidden)
+
+		// loginしていない場合の処理
+
 		return
 	}
 
-	// Print secret message
-	fmt.Fprintln(w, "The cake is a lie!")
+	cookie, err = r.Cookie("UserId")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// loginしている場合の処理
+
+	fmt.Fprintln(w, "Your user id is", cookie.Value)
 }
 
 func login(w http.ResponseWriter, r *http.Request) {
 	cookie := &http.Cookie{
-		Name:  "user_id", // ここにcookieの名前を記述
-		Value: "bar",     // ここにcookieの値を記述
+		Name:  "Login",
+		Value: "true",
 	}
 	http.SetCookie(w, cookie)
 
-	fmt.Println(cookie)
+	cookie = &http.Cookie{
+		Name:  "UserId",
+		Value: "69",
+	}
+	http.SetCookie(w, cookie)
+
+	fmt.Fprintln(w, "You logged in")
 }
 
 func logout(w http.ResponseWriter, r *http.Request) {
-	session, _ := store.Get(r, "cookie-name")
+	cookie, err := r.Cookie("Login")
+	if err != nil || cookie.Value != "true" {
+		http.Error(w, "Forbidden", http.StatusForbidden)
+		return
+	}
+	cookie.MaxAge = -1
+	http.SetCookie(w, cookie)
 
-	// Revoke users authentication
-	// session.Values["authenticated"] = false
-	// store.MaxAge(-1)
-	session.Options.MaxAge = -1
-	session.Save(r, w)
+	fmt.Fprintln(w, "You logged out")
 }
 
 func main() {
