@@ -21,48 +21,32 @@ type User struct {
 }
 
 func secret(w http.ResponseWriter, r *http.Request) {
+	logoutFunc := func() {
+		http.Error(w, "Forbidden", http.StatusForbidden)
+
+		// loginしていない場合の処理
+	}
+
 	cookie, err := r.Cookie("Session")
 	if err != nil {
-		log.Fatal(err)
-	}
-	// Parse the token
-	// token, err := jwt.Parse(cookie.Value, func(token *jwt.Token) (interface{}, error) {
-	// 	if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-	// 		return nil, fmt.Errorf(("Invalid Signing Method"))
-	// 	}
-	// 	if _, ok := token.Claims.(jwt.Claims); !ok && !token.Valid {
-	// 		return nil, fmt.Errorf(("Expired token"))
-	// 	}
+		logoutFunc()
 
-	// 	return secret_key, nil
-	// })
-	// if err != nil {
-	// 	fmt.Fprintf(w, err.Error())
-	// }
+		return
+	}
+
 	var user User
 	token, err := jwt.ParseWithClaims(cookie.Value, &user, func(token *jwt.Token) (interface{}, error) {
-		// since we only use the one private key to sign the tokens,
-		// we also only use its public counter part to verify
 		return []byte(secret_key), nil
 	})
 	if err != nil {
-		fmt.Println("dfasdfadfdfa")
 		log.Fatal(err)
 	}
 
-	fmt.Println(token)
-	// if err != nil || cookie.Value != "true" {
-	// 	http.Error(w, "Forbidden", http.StatusForbidden)
+	if !token.Valid || !user.Login {
+		logoutFunc()
 
-	// 	// loginしていない場合の処理
-
-	// 	return
-	// }
-
-	// cookie, err = r.Cookie("UserId")
-	// if err != nil {
-	// 	log.Fatal(err)
-	// }
+		return
+	}
 
 	// loginしている場合の処理
 
@@ -85,9 +69,23 @@ func login(w http.ResponseWriter, r *http.Request) {
 }
 
 func logout(w http.ResponseWriter, r *http.Request) {
-	cookie, err := r.Cookie("Login")
-	if err != nil || cookie.Value != "true" {
+	cookie, err := r.Cookie("Session")
+	if err != nil {
+		log.Fatal(err)
+	}
+	var user User
+	token, err := jwt.ParseWithClaims(cookie.Value, &user, func(token *jwt.Token) (interface{}, error) {
+		return []byte(secret_key), nil
+	})
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	if !token.Valid || !user.Login {
 		http.Error(w, "Forbidden", http.StatusForbidden)
+
+		// loginしていない場合の処理
+
 		return
 	}
 	cookie.MaxAge = -1
