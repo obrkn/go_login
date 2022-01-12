@@ -27,17 +27,14 @@ func secret(w http.ResponseWriter, r *http.Request) {
 }
 
 func login(w http.ResponseWriter, r *http.Request) {
-	cookie := &http.Cookie{
+	http.SetCookie(w, &http.Cookie{
 		Name:  "Login",
 		Value: "true",
-	}
-	http.SetCookie(w, cookie)
-
-	cookie = &http.Cookie{
+	})
+	http.SetCookie(w, &http.Cookie{
 		Name:  "UserId",
 		Value: "69",
-	}
-	http.SetCookie(w, cookie)
+	})
 
 	fmt.Fprintln(w, "You logged in")
 }
