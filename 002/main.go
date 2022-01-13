@@ -10,8 +10,8 @@ import (
 
 // テスト用設定値
 var (
-	testUserId = "69"
-	verifyKey  = []byte("Drs3amXNE8PnhWxip779Li49auQLx5v5")
+	testUserId = "f63644c8-1e80-7975-6637-681c173971c2"     // ユーザーID
+	verifyKey  = []byte("Drs3amXNE8PnhWxip779Li49auQLx5v5") // 秘密鍵
 )
 
 type User struct {

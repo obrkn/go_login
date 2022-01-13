@@ -8,7 +8,7 @@ import (
 
 // テスト用設定値
 var (
-	testUserId = "69"
+	testUserId = "f63644c8-1e80-7975-6637-681c173971c2" // ユーザーID
 )
 
 func secret(w http.ResponseWriter, r *http.Request) {
