@@ -6,6 +6,11 @@ import (
 	"net/http"
 )
 
+// テスト用設定値
+var (
+	testUserId = "69"
+)
+
 func secret(w http.ResponseWriter, r *http.Request) {
 	cookie, err := r.Cookie("Login")
 	if err != nil || cookie.Value != "true" {
@@ -28,12 +33,14 @@ func secret(w http.ResponseWriter, r *http.Request) {
 
 func login(w http.ResponseWriter, r *http.Request) {
 	http.SetCookie(w, &http.Cookie{
-		Name:  "Login",
-		Value: "true",
+		Name:     "Login",
+		Value:    "true",
+		HttpOnly: true,
 	})
 	http.SetCookie(w, &http.Cookie{
-		Name:  "UserId",
-		Value: "69",
+		Name:     "UserId",
+		Value:    testUserId,
+		HttpOnly: true,
 	})
 
 	fmt.Fprintln(w, "You logged in")
@@ -45,7 +52,7 @@ func logout(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Forbidden", http.StatusForbidden)
 		return
 	}
-	cookie.MaxAge = -1
+	cookie.MaxAge = -1 // Cookieを破棄する
 	http.SetCookie(w, cookie)
 
 	fmt.Fprintln(w, "You logged out")

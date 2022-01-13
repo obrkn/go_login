@@ -10,8 +10,8 @@ import (
 
 // テスト用設定値
 var (
-	user_id    = "69"
-	secret_key = "Drs3amXNE8PnhWxip779Li49auQLx5v5"
+	testUserId = "69"
+	verifyKey  = []byte("Drs3amXNE8PnhWxip779Li49auQLx5v5")
 )
 
 type User struct {
@@ -21,29 +21,27 @@ type User struct {
 }
 
 func secret(w http.ResponseWriter, r *http.Request) {
-	logoutFunc := func() {
+	cookie, err := r.Cookie("Session")
+	if err != nil {
 		http.Error(w, "Forbidden", http.StatusForbidden)
 
 		// loginしていない場合の処理
-	}
-
-	cookie, err := r.Cookie("Session")
-	if err != nil {
-		logoutFunc()
 
 		return
 	}
 
 	var user User
 	token, err := jwt.ParseWithClaims(cookie.Value, &user, func(token *jwt.Token) (interface{}, error) {
-		return []byte(secret_key), nil
+		return verifyKey, nil
 	})
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	if !token.Valid || !user.Login {
-		logoutFunc()
+		http.Error(w, "Forbidden", http.StatusForbidden)
+
+		// loginしていない場合の処理
 
 		return
 	}
@@ -55,13 +53,14 @@ func secret(w http.ResponseWriter, r *http.Request) {
 
 func login(w http.ResponseWriter, r *http.Request) {
 	token := jwt.NewWithClaims(jwt.GetSigningMethod("HS256"), &User{
-		UserId: user_id,
+		UserId: testUserId,
 		Login:  true,
 	})
-	tokenString, _ := token.SignedString([]byte(secret_key))
+	tokenString, _ := token.SignedString(verifyKey)
 	cookie := &http.Cookie{
-		Name:  "Session",
-		Value: tokenString,
+		Name:     "Session",
+		Value:    tokenString,
+		HttpOnly: true,
 	}
 	http.SetCookie(w, cookie)
 
@@ -75,7 +74,7 @@ func logout(w http.ResponseWriter, r *http.Request) {
 	}
 	var user User
 	token, err := jwt.ParseWithClaims(cookie.Value, &user, func(token *jwt.Token) (interface{}, error) {
-		return []byte(secret_key), nil
+		return verifyKey, nil
 	})
 	if err != nil {
 		log.Fatal(err)
