@@ -7,41 +7,40 @@ import (
 	"github.com/gorilla/sessions"
 )
 
+// テスト用設定値
 var (
-	// key must be 16, 24 or 32 bytes long (AES-128, AES-192 or AES-256)
-	key   = []byte("super-secret-key")
-	store = sessions.NewCookieStore(key)
+	testUserId = "f63644c8-1e80-7975-6637-681c173971c2"     // ユーザーID
+	verifyKey  = []byte("Drs3amXNE8PnhWxip779Li49auQLx5v5") // 秘密鍵
+	store      = sessions.NewCookieStore(verifyKey)
 )
 
 func secret(w http.ResponseWriter, r *http.Request) {
-	session, _ := store.Get(r, "cookie-name")
+	session, _ := store.Get(r, "Session")
 
-	// Check if user is authenticated
-	if auth, ok := session.Values["authenticated"].(bool); !ok || !auth {
+	if auth, ok := session.Values["Login"].(bool); !ok || !auth {
 		http.Error(w, "Forbidden", http.StatusForbidden)
 		return
 	}
 
-	// Print secret message
-	fmt.Fprintln(w, "The cake is a lie!")
+	fmt.Fprintln(w, "Your user id is", session.Values["UserId"])
 }
 
 func login(w http.ResponseWriter, r *http.Request) {
-	session, _ := store.Get(r, "cookie-name")
+	session, _ := store.Get(r, "Session")
 
-	// Authentication goes here
-	// ...
+	session.Options = &sessions.Options{
+		HttpOnly: true,
+	}
 
-	// Set user as authenticated
-	session.Values["authenticated"] = true
+	session.Values["Login"] = true
+	session.Values["UserId"] = testUserId
 	session.Save(r, w)
 }
 
 func logout(w http.ResponseWriter, r *http.Request) {
-	session, _ := store.Get(r, "cookie-name")
+	session, _ := store.Get(r, "Session")
 
-	// Revoke users authentication
-	session.Values["authenticated"] = false
+	session.Options.MaxAge = -1
 	session.Save(r, w)
 }
 
