@@ -9,6 +9,7 @@ import (
 
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/gorilla/sessions"
+	"golang.org/x/crypto/bcrypt"
 )
 
 // テスト用設定値
@@ -133,8 +134,12 @@ func signup(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		password := r.FormValue("password")
+		hashed_password, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+		if err != nil {
+			log.Fatal(err)
+		}
 
-		_, err = db.Exec("INSERT INTO users(email, password) VALUES(?, ?);", email, password)
+		_, err = db.Exec("INSERT INTO users(email, password, last_login_at) VALUES(?, ?, NOW());", email, hashed_password)
 		if err != nil {
 			log.Fatal(err)
 		}
