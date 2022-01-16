@@ -10,7 +10,7 @@ import (
 
 // テスト用設定値
 var (
-	testUserId = "f63644c8-1e80-7975-6637-681c173971c2"     // ユーザーID
+	testUserId = 69                                         // ユーザーID
 	verifyKey  = []byte("Drs3amXNE8PnhWxip779Li49auQLx5v5") // 秘密鍵
 	store      = sessions.NewCookieStore(verifyKey)
 	layout     = "2006-01-02 15:04:05 +0900 JST"
