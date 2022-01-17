@@ -17,6 +17,7 @@ var (
 	verifyKey = []byte("Drs3amXNE8PnhWxip779Li49auQLx5v5") // 秘密鍵
 	store     = sessions.NewCookieStore(verifyKey)
 	layout    = "2006-01-02 15:04:05 +0900 JST"
+	dbLayout  = "2006-01-02 15:04:05"
 	jst, _    = time.LoadLocation("Asia/Tokyo")
 )
 
@@ -34,7 +35,7 @@ func secret(w http.ResponseWriter, r *http.Request) {
 	} else {
 		// 期限を過ぎた場合はエラーを返す
 		now := time.Now()
-		if time, err := time.ParseInLocation(layout, str, jst); err != nil || time.Before(now) {
+		if t, err := time.ParseInLocation(layout, str, jst); err != nil || t.Before(now) {
 			http.Error(w, "Forbidden", http.StatusForbidden)
 			return
 		}
@@ -52,13 +53,39 @@ func login(w http.ResponseWriter, r *http.Request) {
 		defer db.Close()
 
 		var user User
-		email := r.FormValue("email")
-		password := r.FormValue("password")
-		err = db.QueryRow("SELECT id, email FROM users WHERE email=? AND password=?", email, password).Scan(&user.Id, &user.Email)
-		if err == sql.ErrNoRows {
+		err = db.
+			QueryRow("SELECT id, email, password, failed_attempts, locked_at FROM users WHERE email=?", r.FormValue("email")).
+			Scan(&user.Id, &user.Email, &user.Password, &user.FailedAttempts, &user.LockedAt)
+
+		if err != nil {
+			log.Fatal(err)
+		}
+		now := time.Now()
+		if t, err := time.ParseInLocation(dbLayout, user.LockedAt, jst); err == sql.ErrNoRows || t.Add(30*time.Minute).After(now) {
 			http.Error(w, "Forbidden", http.StatusForbidden)
 			return
 		} else if err != nil {
+			log.Fatal(err)
+		}
+
+		err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(r.FormValue("password")))
+		if err != nil {
+			if user.FailedAttempts >= 10 {
+				_, err = db.Exec("UPDATE users SET failed_attempts=?, locked_at=NOW() WHERE id=?", user.FailedAttempts+1, user.Id)
+				if err != nil {
+					log.Fatal(err)
+				}
+			} else {
+				_, err = db.Exec("UPDATE users SET failed_attempts=? WHERE id=?", user.FailedAttempts+1, user.Id)
+				if err != nil {
+					log.Fatal(err)
+				}
+			}
+			http.Error(w, "Forbidden", http.StatusForbidden)
+			return
+		}
+		_, err = db.Exec("UPDATE users SET failed_attempts=0 WHERE id=?", user.Id)
+		if err != nil {
 			log.Fatal(err)
 		}
 
@@ -108,11 +135,13 @@ func logout(w http.ResponseWriter, r *http.Request) {
 }
 
 type User struct {
-	Id        int    `json:"id"`
-	Email     string `json:"email"`
-	Password  string `json:"password"`
-	CreatedAt string `json:"created_at"`
-	UpdatedAt string `json:"updated_at"`
+	Id             int    `json:"id"`
+	Email          string `json:"email"`
+	Password       string `json:"password"`
+	FailedAttempts int    `json:"failed_attempts"`
+	LockedAt       string `json:"locked_at"`
+	CreatedAt      string `json:"created_at"`
+	UpdatedAt      string `json:"updated_at"`
 }
 
 func signup(w http.ResponseWriter, r *http.Request) {
@@ -124,12 +153,14 @@ func signup(w http.ResponseWriter, r *http.Request) {
 		}
 		defer db.Close()
 
-		var user User
+		var exists bool
 		email := r.FormValue("email")
-		err = db.QueryRow("SELECT id, email FROM users WHERE email=?", email).Scan(&user.Id, &user.Email)
-		if err != nil && err != sql.ErrNoRows {
+		err = db.
+			QueryRow("SELECT EXISTS ( SELECT 1 FROM users WHERE email = ? LIMIT 1)", email).
+			Scan(&exists)
+		if err != nil {
 			log.Fatal(err)
-		} else if err != sql.ErrNoRows {
+		} else if exists {
 			http.Error(w, "Your email is already used", http.StatusBadRequest)
 			return
 		}
@@ -139,7 +170,7 @@ func signup(w http.ResponseWriter, r *http.Request) {
 			log.Fatal(err)
 		}
 
-		_, err = db.Exec("INSERT INTO users(email, password, last_login_at) VALUES(?, ?, NOW());", email, hashed_password)
+		_, err = db.Exec("INSERT INTO users(email, password) VALUES(?, ?);", email, hashed_password)
 		if err != nil {
 			log.Fatal(err)
 		}
