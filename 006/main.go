@@ -21,6 +21,16 @@ var (
 	jst, _    = time.LoadLocation("Asia/Tokyo")
 )
 
+type User struct {
+	Id             int    `json:"id"`
+	Email          string `json:"email"`
+	Password       string `json:"password"`
+	FailedAttempts int    `json:"failed_attempts"`
+	LockedAt       string `json:"locked_at"`
+	CreatedAt      string `json:"created_at"`
+	UpdatedAt      string `json:"updated_at"`
+}
+
 func secret(w http.ResponseWriter, r *http.Request) {
 	session, _ := store.Get(r, "Session")
 
@@ -132,16 +142,6 @@ func logout(w http.ResponseWriter, r *http.Request) {
 	session.Save(r, w)
 
 	fmt.Fprintln(w, "You logged out")
-}
-
-type User struct {
-	Id             int    `json:"id"`
-	Email          string `json:"email"`
-	Password       string `json:"password"`
-	FailedAttempts int    `json:"failed_attempts"`
-	LockedAt       string `json:"locked_at"`
-	CreatedAt      string `json:"created_at"`
-	UpdatedAt      string `json:"updated_at"`
 }
 
 func signup(w http.ResponseWriter, r *http.Request) {
