@@ -56,48 +56,31 @@ func secret(w http.ResponseWriter, r *http.Request) {
 
 func login(w http.ResponseWriter, r *http.Request) {
 	if r.Method == "POST" {
-		db, err := sql.Open("mysql", "root@tcp(localhost:3306)/dbname")
-		if err != nil {
-			log.Fatal(err)
-		}
+		db, _ := sql.Open("mysql", "root@tcp(localhost:3306)/dbname")
 		defer db.Close()
 
 		var user User
-		err = db.
+		db.
 			QueryRow("SELECT id, email, password, failed_attempts, locked_at FROM users WHERE email=?", r.FormValue("email")).
 			Scan(&user.Id, &user.Email, &user.Password, &user.FailedAttempts, &user.LockedAt)
 
-		if err != nil {
-			log.Fatal(err)
-		}
 		now := time.Now()
 		if t, err := time.ParseInLocation(dbLayout, user.LockedAt, jst); err == sql.ErrNoRows || t.Add(30*time.Minute).After(now) {
 			http.Error(w, "Forbidden", http.StatusForbidden)
 			return
-		} else if err != nil {
-			log.Fatal(err)
 		}
 
-		err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(r.FormValue("password")))
-		if err != nil {
+		if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(r.FormValue("password"))); err != nil {
 			if user.FailedAttempts >= 10 {
-				_, err = db.Exec("UPDATE users SET failed_attempts=?, locked_at=NOW() WHERE id=?", user.FailedAttempts+1, user.Id)
-				if err != nil {
-					log.Fatal(err)
-				}
+				db.Exec("UPDATE users SET failed_attempts=?, locked_at=NOW() WHERE id=?", user.FailedAttempts+1, user.Id)
 			} else {
-				_, err = db.Exec("UPDATE users SET failed_attempts=? WHERE id=?", user.FailedAttempts+1, user.Id)
-				if err != nil {
-					log.Fatal(err)
-				}
+				db.Exec("UPDATE users SET failed_attempts=? WHERE id=?", user.FailedAttempts+1, user.Id)
 			}
 			http.Error(w, "Forbidden", http.StatusForbidden)
 			return
 		}
-		_, err = db.Exec("UPDATE users SET failed_attempts=0 WHERE id=?", user.Id)
-		if err != nil {
-			log.Fatal(err)
-		}
+
+		db.Exec("UPDATE users SET failed_attempts=0 WHERE id=?", user.Id)
 
 		session, _ := store.Get(r, "Session")
 		session.Options.HttpOnly = true
@@ -147,20 +130,15 @@ func logout(w http.ResponseWriter, r *http.Request) {
 func signup(w http.ResponseWriter, r *http.Request) {
 
 	if r.Method == "POST" {
-		db, err := sql.Open("mysql", "root@tcp(localhost:3306)/dbname")
-		if err != nil {
-			log.Fatal(err)
-		}
+		db, _ := sql.Open("mysql", "root@tcp(localhost:3306)/dbname")
 		defer db.Close()
 
 		var exists bool
 		email := r.FormValue("email")
-		err = db.
+		db.
 			QueryRow("SELECT EXISTS ( SELECT 1 FROM users WHERE email = ? LIMIT 1)", email).
 			Scan(&exists)
-		if err != nil {
-			log.Fatal(err)
-		} else if exists {
+		if exists {
 			http.Error(w, "Your email is already used", http.StatusBadRequest)
 			return
 		}
