@@ -63,9 +63,14 @@ func login(w http.ResponseWriter, r *http.Request) {
 		defer db.Close()
 
 		var user User
-		db.
+		err := db.
 			QueryRow("SELECT id, email, password, failed_attempts, locked_at FROM users WHERE email=?", r.FormValue("email")).
 			Scan(&user.Id, &user.Email, &user.Password, &user.FailedAttempts, &user.LockedAt)
+
+		if err != nil {
+			http.Error(w, "Forbidden", http.StatusForbidden)
+			return
+		}
 
 		now := time.Now()
 		if t, err := time.ParseInLocation(dbLayout, user.LockedAt, jst); err == sql.ErrNoRows || t.Add(30*time.Minute).After(now) {
