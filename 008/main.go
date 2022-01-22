@@ -91,7 +91,7 @@ func login(w http.ResponseWriter, r *http.Request) {
 		session.Values["Login"] = true
 		session.Values["UserId"] = user.Id
 
-		if r.FormValue("is_autologin_on") == "true" {
+		if r.FormValue("is_autologin_on") == "on" {
 			// 自動ログインをオンにした場合
 			session.Values["ExpiredAt"] = time.Now().AddDate(0, 0, 7).Format(layout) // 1週間後に設定
 			session.Options.MaxAge = 60 * 60 * 24 * 7                                // 1週間後に設定
@@ -115,6 +115,8 @@ func login(w http.ResponseWriter, r *http.Request) {
 		<input type="email" id="email" name="email" pattern=".+@.+\..+" size="30" required><br><br>
 		<label for="password">password:</label><br>
 		<input type="password" id="password" name="password" minlength="8" required><br><br>
+		<label for="is_autologin_on">auto login:</label>
+		<input type="checkbox" id="is_autologin_on" name="is_autologin_on"><br><br>
 		<input type="submit" value="Submit">
 	</form>
 </body>`)
